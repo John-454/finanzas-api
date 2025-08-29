@@ -14,7 +14,8 @@ exports.crearFactura = async (req, res) => {
       productos,
       total,
       abono,
-      saldo
+      saldo,
+      usuarioId: req.usuario._id
     });
 
     await factura.save();
@@ -37,7 +38,7 @@ exports.crearFactura = async (req, res) => {
 
 exports.obtenerFacturas = async (req, res) => {
   try {
-    const facturas = await Factura.find().sort({ fecha: -1 });
+    const facturas = await Factura.find({ usuarioId: req.usuario.id }).sort({ fecha: -1 });
     res.json(facturas);
   } catch (err) {
     res.status(500).json({ error: err.message });

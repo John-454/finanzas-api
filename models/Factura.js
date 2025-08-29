@@ -27,7 +27,12 @@ const facturaSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
-  historialAbonos: [abonoSchema]
+  historialAbonos: [abonoSchema],
+  usuarioId:{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Usuario',
+    required: true
+  }
 });
 
 module.exports = mongoose.model('Factura', facturaSchema);
