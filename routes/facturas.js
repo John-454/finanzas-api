@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const facturaController = require('../controllers/facturaController');
+const authMiddleware = require('../middlewares/authMiddleware');
 
-router.post('/', facturaController.crearFactura);
-router.get('/', facturaController.obtenerFacturas);
+router.post('/', authMiddleware, facturaController.crearFactura);
+router.get('/', authMiddleware, facturaController.obtenerFacturas);
 router.patch('/:id/abonar', facturaController.registrarAbono);
 router.get('/cliente/:nombre', facturaController.obtenerFacturasPorCliente);
 router.get('/saldos-pendientes', facturaController.obtenerSaldosPendientes);
