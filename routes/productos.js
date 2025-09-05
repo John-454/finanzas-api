@@ -4,10 +4,10 @@ const productoController = require('../controllers/productoController');
 const authMiddleware = require('../middlewares/authMiddleware');
 
 router.get('/', authMiddleware, productoController.obtenerProductos);
-router.get('/:id', productoController.obtenerProductoPorId);
+router.get('/:id', authMiddleware, productoController.obtenerProductoPorId); // También agregué auth aquí por seguridad
 router.post('/', authMiddleware, productoController.crearProducto);
-router.put('/:id', productoController.actualizarProducto);
-router.delete('/:id', productoController.eliminarProducto);
-router.get('/buscar/nombre', productoController.buscarPorNombre);
+router.put('/:id', authMiddleware, productoController.actualizarProducto); // ✅ Agregado authMiddleware
+router.delete('/:id', authMiddleware, productoController.eliminarProducto); // ✅ Agregado authMiddleware
+router.get('/buscar/nombre', authMiddleware, productoController.buscarPorNombre); // También agregué auth aquí
 
 module.exports = router;
