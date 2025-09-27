@@ -16,4 +16,11 @@ router.get('/resumen-rango', authMiddleware, contabilidadController.resumenPorRa
 // Mantener ruta original para compatibilidad
 router.get('/resumen-mensual', authMiddleware, contabilidadController.resumenMensual);
 
+// Guardar cierre mensual fijo
+router.post('/cerrar-mes', authMiddleware, contabilidadController.cerrarMes);
+// Historial de cierres mensuales
+router.get('/historial-mensual', authMiddleware, contabilidadController.historialMensual);
+// Resumen mensual dinámico (no guarda)
+router.get('/resumen-mensual/:anio/:mes', authMiddleware, contabilidadController.resumenMensualPorMes);
+
 module.exports = router;

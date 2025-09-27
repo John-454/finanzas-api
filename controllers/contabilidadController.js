@@ -445,3 +445,157 @@ exports.resumenMensual = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+const ResumenMensual = require('../models/ResumenMensual');
+
+// Cerrar mes y guardar valores fijos
+exports.cerrarMes = async (req, res) => {
+  try {
+    const { anio, mes } = req.body; // mes: 1-12
+
+    if (!anio || !mes) {
+      return res.status(400).json({ error: 'anio y mes son requeridos' });
+    }
+
+    // Calcular rango del mes
+    const inicio = new Date(anio, mes - 1, 1, 0, 0, 0, 0);
+    const fin = new Date(anio, mes, 0, 23, 59, 59, 999);
+
+    // Ventas
+    const ventas = await Factura.aggregate([
+      {
+        $match: {
+          usuarioId: new mongoose.Types.ObjectId(req.usuario.id),
+          fecha: { $gte: inicio, $lte: fin }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalVentas: { $sum: "$total" },
+          totalAbonos: { $sum: "$abono" },
+          saldoPendiente: { $sum: "$saldo" },
+          cantidadFacturas: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Gastos
+    const gastos = await GastoDiario.aggregate([
+      {
+        $match: {
+          creadoPor: new mongoose.Types.ObjectId(req.usuario.id),
+          fecha: { $gte: inicio, $lte: fin }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalGastos: { $sum: "$monto" },
+          cantidadGastos: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const totalVentas = ventas[0]?.totalVentas || 0;
+    const totalAbonos = ventas[0]?.totalAbonos || 0;
+    const totalGastos = gastos[0]?.totalGastos || 0;
+    const saldoNeto = totalAbonos - totalGastos;
+
+    // Guardar
+    const resumen = new ResumenMensual({
+      usuarioId: req.usuario.id,
+      anio,
+      mes,
+      totalVentas,
+      totalAbonos,
+      totalGastos,
+      saldoNeto
+    });
+
+    await resumen.save();
+
+    res.json({ mensaje: "Cierre mensual guardado", resumen });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Listar historial de cierres mensuales guardados
+exports.historialMensual = async (req, res) => {
+  try {
+    const historial = await ResumenMensual.find({
+      usuarioId: req.usuario.id
+    })
+    .sort({ anio: -1, mes: -1 }); // ordenar de más reciente a más antiguo
+
+    res.json(historial);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Resumen mensual dinámico (no guarda en BD)
+exports.resumenMensualPorMes = async (req, res) => {
+  try {
+    const { anio, mes } = req.params;
+
+    if (!anio || !mes) {
+      return res.status(400).json({ error: "anio y mes son requeridos" });
+    }
+
+    const inicio = new Date(anio, mes - 1, 1, 0, 0, 0, 0);
+    const fin = new Date(anio, mes, 0, 23, 59, 59, 999);
+
+    // Ventas
+    const ventas = await Factura.aggregate([
+      {
+        $match: {
+          usuarioId: new mongoose.Types.ObjectId(req.usuario.id),
+          fecha: { $gte: inicio, $lte: fin }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalVentas: { $sum: "$total" },
+          totalAbonado: { $sum: "$abono" },
+          saldoPendiente: { $sum: "$saldo" },
+          cantidadFacturas: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Gastos
+    const gastos = await GastoDiario.aggregate([
+      {
+        $match: {
+          creadoPor: new mongoose.Types.ObjectId(req.usuario.id),
+          fecha: { $gte: inicio, $lte: fin }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalGastos: { $sum: "$monto" },
+          cantidadGastos: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const totalVentas = ventas[0]?.totalVentas || 0;
+    const totalAbonado = ventas[0]?.totalAbonado || 0;
+    const totalGastos = gastos[0]?.totalGastos || 0;
+    const saldoNeto = totalAbonado - totalGastos;
+
+    res.json({
+      ventas: { total: totalVentas, totalAbonado },
+      gastos: { total: totalGastos },
+      saldos: { saldoNeto }
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
