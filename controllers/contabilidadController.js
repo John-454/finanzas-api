@@ -1,11 +1,12 @@
 const Factura = require('../models/Factura');
 const GastoDiario = require('../models/GastoDiario');
 const mongoose = require('mongoose');
+const MovimientoNequi = require('../models/MovimientoNequi');
 
 // Agregar un nuevo gasto diario
 exports.agregarGasto = async (req, res) => {
   try {
-    const { descripcion, monto, categoria, fecha } = req.body;
+    const { descripcion, monto, categoria, fecha, tipo } = req.body;
 
     if (!descripcion || !monto) {
       return res.status(400).json({ 
@@ -22,23 +23,46 @@ exports.agregarGasto = async (req, res) => {
     // SOLUCIÓN: Crear fecha local sin conversión UTC
     let fechaGasto;
     if (fecha) {
-      // Si viene una fecha específica, usarla como fecha local
+      // Guardar fecha explícita en UTC
       const [year, month, day] = fecha.split('-').map(Number);
-      fechaGasto = new Date(year, month - 1, day, 12, 0, 0); // Usar mediodía para evitar problemas de zona horaria
+      fechaGasto = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
     } else {
-      // Si no viene fecha, usar la fecha actual
-      fechaGasto = new Date();
+      // Fecha actual en UTC
+      const ahora = new Date();
+      fechaGasto = new Date(Date.UTC(
+        ahora.getUTCFullYear(),
+        ahora.getUTCMonth(),
+        ahora.getUTCDate(),
+        ahora.getUTCHours(),
+        ahora.getUTCMinutes(),
+        ahora.getUTCSeconds()
+      ));
     }
 
     const nuevoGasto = new GastoDiario({
       descripcion: descripcion.trim(),
       monto: parseFloat(monto),
       categoria: categoria || 'General',
+      tipo: tipo || 'efectivo',
       fecha: fechaGasto,
       creadoPor: req.usuario?.id
     });
 
     await nuevoGasto.save();
+
+    // Registrar movimiento del gasto
+    const nuevoMovimiento = new MovimientoNequi({
+      fecha: fechaGasto,
+      tipo: 'gasto',
+      monto: parseFloat(monto),
+      metodoPago: tipo || 'efectivo',
+      descripcion: descripcion.trim(),
+      gastoId: nuevoGasto._id,
+      usuarioId: req.usuario?.id
+    });
+
+    await nuevoMovimiento.save();
+
     res.status(201).json({
       mensaje: 'Gasto registrado exitosamente',
       gasto: nuevoGasto
@@ -50,11 +74,25 @@ exports.agregarGasto = async (req, res) => {
 };
 
 
-// Función auxiliar para crear fechas locales
-function crearFechaLocal(fechaString) {
-  const [año, mes, dia] = fechaString.split('-').map(Number);
-  return new Date(año, mes - 1, dia); // mes es 0-indexado
+// 🔧 FUNCIÓN AUXILIAR CORREGIDA - Considera zona horaria UTC-5 (Colombia)
+function crearRangoLocalUTC(fechaString, offsetHoras = -5) {
+  const [year, month, day] = fechaString.split('-').map(Number);
+  
+  // Para el día local, necesitamos ajustar el rango UTC
+  // Si estamos en UTC-5, el día 29 local va desde:
+  // 29 00:00 local = 29 05:00 UTC
+  // 29 23:59 local = 30 04:59 UTC
+  
+  const inicioLocal = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+  const finLocal = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+  
+  // Ajustar por zona horaria (restar el offset porque UTC-5 significa que UTC está adelantado)
+  const inicio = new Date(inicioLocal.getTime() - (offsetHoras * 60 * 60 * 1000));
+  const fin = new Date(finLocal.getTime() - (offsetHoras * 60 * 60 * 1000));
+  
+  return { inicio, fin };
 }
+
 
 // Obtener gastos de un día específico
 exports.obtenerGastosDia = async (req, res) => {
@@ -65,14 +103,12 @@ exports.obtenerGastosDia = async (req, res) => {
       return res.status(400).json({ error: 'Fecha es requerida' });
     }
 
-    // SOLUCIÓN: Crear fechas locales sin UTC
-    const [year, month, day] = fecha.split('-').map(Number);
-    const inicioDia = new Date(year, month - 1, day, 0, 0, 0, 0);
-    const finDia = new Date(year, month - 1, day, 23, 59, 59, 999);
+    // 🔧 CORREGIDO: Usar función que considera zona horaria local
+    const { inicio: inicioDia, fin: finDia } = crearRangoLocalUTC(fecha);
 
     console.log('Fecha consulta:', fecha);
-    console.log('Inicio día:', inicioDia);
-    console.log('Fin día:', finDia);
+    console.log('Inicio día (UTC):', inicioDia.toISOString());
+    console.log('Fin día (UTC):', finDia.toISOString());
 
     const gastos = await GastoDiario.find({
       fecha: {
@@ -120,7 +156,7 @@ exports.eliminarGasto = async (req, res) => {
 exports.actualizarGasto = async (req, res) => {
   try {
     const { id } = req.params;
-    const { descripcion, monto, categoria } = req.body;
+    const { descripcion, monto, categoria, tipo } = req.body;
 
     if (monto !== undefined && monto <= 0) {
       return res.status(400).json({ 
@@ -129,14 +165,15 @@ exports.actualizarGasto = async (req, res) => {
     }
 
     const gastoActualizado = await GastoDiario.findByIdAndUpdate(
-      id,
-      {
-        ...(descripcion && { descripcion: descripcion.trim() }),
-        ...(monto && { monto: parseFloat(monto) }),
-        ...(categoria && { categoria })
-      },
-      { new: true, runValidators: true }
-    );
+  id,
+  {
+    ...(descripcion && { descripcion: descripcion.trim() }),
+    ...(monto && { monto: parseFloat(monto) }),
+    ...(categoria && { categoria }),
+    ...(tipo && { tipo })
+  },
+  { new: true, runValidators: true }
+);
 
     if (!gastoActualizado) {
       return res.status(404).json({ error: 'Gasto no encontrado' });
@@ -152,7 +189,7 @@ exports.actualizarGasto = async (req, res) => {
   }
 };
 
-// Resumen diario: ventas, gastos y saldo neto
+// 🔧 RESUMEN DIARIO CORREGIDO
 exports.resumenDiario = async (req, res) => {
   try {
     const { fecha } = req.params;
@@ -161,12 +198,15 @@ exports.resumenDiario = async (req, res) => {
       return res.status(400).json({ error: 'Fecha es requerida (formato: YYYY-MM-DD)' });
     }
 
-    // SOLUCIÓN: Crear fechas locales
-    const [year, month, day] = fecha.split('-').map(Number);
-    const inicioDia = new Date(year, month - 1, day, 0, 0, 0, 0);
-    const finDia = new Date(year, month - 1, day, 23, 59, 59, 999);
+    // 🔧 CORREGIDO: Usar función que considera zona horaria local
+    const { inicio: inicioDia, fin: finDia } = crearRangoLocalUTC(fecha);
 
-    // Resto del código permanece igual...
+    console.log("=== DEBUG resumenDiario ===");
+    console.log("Fecha solicitada:", fecha);
+    console.log("Rango UTC ajustado:");
+    console.log("  Inicio (UTC):", inicioDia.toISOString());
+    console.log("  Fin (UTC):", finDia.toISOString());
+
     // Obtener ventas del día (facturas)
     const ventasDelDia = await Factura.aggregate([
       {
@@ -178,6 +218,9 @@ exports.resumenDiario = async (req, res) => {
           usuarioId: new mongoose.Types.ObjectId(req.usuario.id)
         }
       },
+      { 
+        $project: { cliente: 1, total: 1, fecha: 1, abono: 1, saldo: 1 } 
+      },
       {
         $group: {
           _id: null,
@@ -188,6 +231,8 @@ exports.resumenDiario = async (req, res) => {
         }
       }
     ]);
+
+    console.log("Facturas encontradas:", ventasDelDia);
 
     // Obtener gastos del día
     const gastosDelDia = await GastoDiario.aggregate([
@@ -218,7 +263,7 @@ exports.resumenDiario = async (req, res) => {
 
     // Calcular saldo neto (ventas - gastos)
     const saldoNeto = totalAbonado - totalGastos;
-    const saldoNetoEfectivo = totalAbonado ; // Saldo real en efectivo
+    const saldoNetoEfectivo = totalAbonado;
 
     const resumen = {
       fecha: fecha,
@@ -233,8 +278,8 @@ exports.resumenDiario = async (req, res) => {
         cantidadGastos: cantidadGastos
       },
       saldos: {
-        saldoNeto: saldoNeto, // Ventas totales - gastos
-        saldoNetoEfectivo: saldoNetoEfectivo, // Dinero cobrado - gastos
+        saldoNeto: saldoNeto,
+        saldoNetoEfectivo: saldoNetoEfectivo,
         efectivoDisponible: totalAbonado - totalGastos
       }
     };
@@ -246,7 +291,7 @@ exports.resumenDiario = async (req, res) => {
   }
 };
 
-// Resumen de varios días (rango de fechas)
+// 🔧 RESUMEN POR RANGO CORREGIDO
 exports.resumenPorRango = async (req, res) => {
   try {
     const { fechaInicio, fechaFin } = req.query;
@@ -257,11 +302,13 @@ exports.resumenPorRango = async (req, res) => {
       });
     }
 
-    const inicio = new Date(fechaInicio);
-    inicio.setHours(0, 0, 0, 0);
-    
-    const fin = new Date(fechaFin);
-    fin.setHours(23, 59, 59, 999);
+    // 🔧 CORREGIDO: Usar función que considera zona horaria local
+    const { inicio } = crearRangoLocalUTC(fechaInicio);
+    const { fin } = crearRangoLocalUTC(fechaFin);
+
+    console.log("=== DEBUG resumenPorRango ===");
+    console.log("Rango solicitado:", fechaInicio, "a", fechaFin);
+    console.log("Rango UTC ajustado:", inicio.toISOString(), "a", fin.toISOString());
 
     // Aggregate ventas por día
     const ventasPorDia = await Factura.aggregate([
@@ -401,10 +448,10 @@ exports.resumenMensual = async (req, res) => {
   try {
     const resumen = await Factura.aggregate([
       {
-    $match: {
-      usuarioId: new mongoose.Types.ObjectId(req.usuario.id) // ✅ AGREGAR ESTO
-    }
-  },
+        $match: {
+          usuarioId: new mongoose.Types.ObjectId(req.usuario.id)
+        }
+      },
       {
         $group: {
           _id: {
@@ -448,18 +495,26 @@ exports.resumenMensual = async (req, res) => {
 
 const ResumenMensual = require('../models/ResumenMensual');
 
-// Cerrar mes y guardar valores fijos
+// 🔧 CERRAR MES CORREGIDO
 exports.cerrarMes = async (req, res) => {
   try {
-    const { anio, mes } = req.body; // mes: 1-12
+    const { anio, mes } = req.body;
 
     if (!anio || !mes) {
       return res.status(400).json({ error: 'anio y mes son requeridos' });
     }
 
-    // Calcular rango del mes
-    const inicio = new Date(anio, mes - 1, 1, 0, 0, 0, 0);
-    const fin = new Date(anio, mes, 0, 23, 59, 59, 999);
+    // 🔧 CORREGIDO: Calcular rango considerando zona horaria
+    const primerDia = `${anio}-${String(mes).padStart(2, '0')}-01`;
+    const ultimoDiaNum = new Date(anio, mes, 0).getDate();
+    const ultimoDia = `${anio}-${String(mes).padStart(2, '0')}-${String(ultimoDiaNum).padStart(2, '0')}`;
+    
+    const { inicio } = crearRangoLocalUTC(primerDia);
+    const { fin } = crearRangoLocalUTC(ultimoDia);
+
+    console.log("=== DEBUG cerrarMes ===");
+    console.log("Mes:", anio, mes);
+    console.log("Rango UTC:", inicio.toISOString(), "a", fin.toISOString());
 
     // Ventas
     const ventas = await Factura.aggregate([
@@ -528,7 +583,7 @@ exports.historialMensual = async (req, res) => {
     const historial = await ResumenMensual.find({
       usuarioId: req.usuario.id
     })
-    .sort({ anio: -1, mes: -1 }); // ordenar de más reciente a más antiguo
+    .sort({ anio: -1, mes: -1 });
 
     res.json(historial);
   } catch (err) {
@@ -536,7 +591,7 @@ exports.historialMensual = async (req, res) => {
   }
 };
 
-// Resumen mensual dinámico (no guarda en BD)
+// 🔧 RESUMEN MENSUAL POR MES CORREGIDO
 exports.resumenMensualPorMes = async (req, res) => {
   try {
     const { anio, mes } = req.params;
@@ -545,8 +600,13 @@ exports.resumenMensualPorMes = async (req, res) => {
       return res.status(400).json({ error: "anio y mes son requeridos" });
     }
 
-    const inicio = new Date(anio, mes - 1, 1, 0, 0, 0, 0);
-    const fin = new Date(anio, mes, 0, 23, 59, 59, 999);
+    // 🔧 CORREGIDO: Calcular rango considerando zona horaria
+    const primerDia = `${anio}-${String(mes).padStart(2, '0')}-01`;
+    const ultimoDiaNum = new Date(anio, mes, 0).getDate();
+    const ultimoDia = `${anio}-${String(mes).padStart(2, '0')}-${String(ultimoDiaNum).padStart(2, '0')}`;
+    
+    const { inicio } = crearRangoLocalUTC(primerDia);
+    const { fin } = crearRangoLocalUTC(ultimoDia);
 
     // Ventas
     const ventas = await Factura.aggregate([
