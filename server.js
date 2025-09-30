@@ -2,6 +2,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const facturaRoutes = require('./routes/facturas');
+const movimientosRoutes = require('./routes/movimientos');
 const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');  
 const path = require('path');
@@ -31,5 +32,6 @@ app.use('/api/facturaRoutes', require('./routes/facturas'));
 app.use('/api/auth', authRoutes); 
 app.use(express.static(path.join(__dirname)));
 app.use('/api/empresa', empresaRoutes);
+app.use('/api/movimientos', movimientosRoutes);
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`));

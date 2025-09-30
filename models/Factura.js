@@ -13,6 +13,11 @@ const productoSchema = new mongoose.Schema({
 
 const abonoSchema = new mongoose.Schema({
   monto: Number,
+  tipo: { 
+    type: String, 
+    enum: ['efectivo', 'nequi'], // Solo acepta estos dos valores
+    required: true 
+  },
   fecha: { type: Date, default: Date.now }
 });
 

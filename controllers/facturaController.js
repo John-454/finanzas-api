@@ -2,12 +2,30 @@ const Factura = require('../models/Factura');
 const generarPDF = require('../utils/generarPDF');
 const path = require('path');
 const fs = require('fs');
+const MovimientoNequi = require('../models/MovimientoNequi');
 
 exports.crearFactura = async (req, res) => {
   try {
-    const { cliente, productos, total, abono = 0 } = req.body;
+    const { cliente, productos, total, abono = 0, tipoAbono } = req.body;
     const usuarioId = req.usuario.id;
     const saldo = total - abono;
+
+    // Validar tipo de abono si existe un abono inicial
+    if (abono > 0) {
+      if (!tipoAbono || !['efectivo', 'nequi'].includes(tipoAbono.toLowerCase())) {
+        return res.status(400).json({ error: 'Debe especificar un tipo de abono válido: "efectivo" o "nequi".' });
+      }
+    }
+
+    // Construir historial de abonos inicial
+    const historialAbonos = [];
+    if (abono > 0) {
+      historialAbonos.push({
+        monto: abono,
+        tipo: tipoAbono.toLowerCase(),
+        fecha: new Date()
+      });
+    }
 
     const factura = new Factura({
       cliente,
@@ -15,26 +33,42 @@ exports.crearFactura = async (req, res) => {
       total,
       abono,
       saldo,
+      historialAbonos,
       usuarioId
     });
 
     await factura.save();
-    generarPDF(factura, (rutaPDF, nombreArchivo) => {
-  res.download(rutaPDF, nombreArchivo, (err) => {
-    if (err) {
-      console.error("Error al enviar el PDF:", err);
-      res.status(500).json({ error: "No se pudo generar el PDF" });
+
+    // Registrar movimiento si hay abono inicial
+    if (abono > 0) {
+      const nuevoMovimiento = new MovimientoNequi({
+        fecha: new Date(),
+        tipo: 'abono',
+        monto: abono,
+        metodoPago: tipoAbono.toLowerCase(),
+        descripcion: `Abono inicial a factura de ${cliente}`,
+        facturaId: factura._id,
+        cliente: cliente,
+        usuarioId: usuarioId
+      });
+      
+      await nuevoMovimiento.save();
     }
 
-    // Opcional: eliminar el archivo PDF después de enviarlo
-    //fs.unlink(rutaPDF, () => {});
-  });
-});
+    generarPDF(factura, (rutaPDF, nombreArchivo) => {
+      res.download(rutaPDF, nombreArchivo, (err) => {
+        if (err) {
+          console.error("Error al enviar el PDF:", err);
+          res.status(500).json({ error: "No se pudo generar el PDF" });
+        }
+      });
+    });
 
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 };
+
 
 exports.obtenerFacturas = async (req, res) => {
   try {
@@ -51,10 +85,14 @@ exports.obtenerFacturas = async (req, res) => {
 exports.registrarAbono = async (req, res) => {
   try {
     const facturaId = req.params.id;
-    const { abono } = req.body;
+    const { abono, tipo } = req.body;
 
     if (typeof abono !== 'number' || abono <= 0) {
       return res.status(400).json({ error: 'El abono debe ser un número mayor a 0.' });
+    }
+
+    if (!tipo || !['efectivo', 'nequi'].includes(tipo.toLowerCase())) {
+      return res.status(400).json({ error: 'El tipo de abono debe ser "efectivo" o "nequi".' });
     }
 
     const factura = await Factura.findById(facturaId);
@@ -66,30 +104,47 @@ exports.registrarAbono = async (req, res) => {
     factura.abono += abono;
     factura.saldo = factura.total - factura.abono;
 
-     // Agregar al historial
+    // Agregar al historial con tipo
     factura.historialAbonos.push({
       monto: abono,
+      tipo: tipo.toLowerCase(),
       fecha: new Date()
     });
 
     await factura.save();
 
-generarPDF(factura, (rutaPDF, nombreArchivo) => {
-  res.download(rutaPDF, nombreArchivo, (err) => {
-    if (err) {
-      console.error("Error al enviar el PDF:", err);
-      res.status(500).json({ error: "No se pudo generar el PDF actualizado." });
-    }
+    // Registrar movimiento del abono
+    const nuevoMovimiento = new MovimientoNequi({
+      fecha: new Date(),
+      tipo: 'abono',
+      monto: abono,
+      metodoPago: tipo.toLowerCase(),
+      descripcion: `Abono a factura de ${factura.cliente}`,
+      facturaId: factura._id,
+      cliente: factura.cliente,
+      usuarioId: factura.usuarioId
+    });
 
-    // Eliminar archivo temporal (opcional)
-    //fs.unlink(rutaPDF, () => {});
-  });
-});
+    await nuevoMovimiento.save();
+
+    // ✅ CAMBIO: Responder con JSON en lugar de descargar PDF
+    res.json({ 
+      mensaje: 'Abono registrado correctamente',
+      factura: {
+        _id: factura._id,
+        cliente: factura.cliente,
+        total: factura.total,
+        abono: factura.abono,
+        saldo: factura.saldo
+      }
+    });
 
   } catch (err) {
+    console.error('Error al registrar abono:', err);
     res.status(500).json({ error: err.message });
   }
 };
+
 
 exports.obtenerFacturasPorCliente = async (req, res) => {
   try {

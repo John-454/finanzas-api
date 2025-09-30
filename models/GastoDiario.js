@@ -22,6 +22,12 @@ const gastoDiarioSchema = new mongoose.Schema({
     trim: true,
     default: 'General'
   },
+  tipo: {
+  type: String,
+  enum: ['efectivo', 'nequi'],
+  required: false,
+  default: 'efectivo'
+  },
   creadoPor: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Usuario',
