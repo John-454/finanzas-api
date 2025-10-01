@@ -1,21 +1,24 @@
 // server.js
 const express = require('express');
 const mongoose = require('mongoose');
-const facturaRoutes = require('./routes/facturas');
-const movimientosRoutes = require('./routes/movimientos');
 const cors = require('cors');
-const authRoutes = require('./routes/authRoutes');  
 const path = require('path');
 require('dotenv').config();
 
+// Importar rutas
+const facturaRoutes = require('./routes/facturas');
+const movimientosRoutes = require('./routes/movimientos');
+const authRoutes = require('./routes/authRoutes');
 const empresaRoutes = require('./routes/empresa');
+
 const app = express();
 
+// Middlewares globales
 app.use(cors());
 app.use(express.json());
-app.use('/api', facturaRoutes); // << Asegúrate de esto
-app.use('/api/empresa/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Servir archivos estáticos - DEBE IR ANTES DE LAS RUTAS DE API
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Conexión a MongoDB
 mongoose.connect(process.env.MONGO_URI, {
@@ -24,14 +27,14 @@ mongoose.connect(process.env.MONGO_URI, {
 }).then(() => console.log("✅ Conectado a MongoDB"))
   .catch(err => console.error("❌ Error de conexión:", err));
 
-// Rutas (luego las importamos)
-app.use('/api/facturas', require('./routes/facturas'));
+// Rutas de API
+app.use('/api/facturas', facturaRoutes);
 app.use('/api/contabilidad', require('./routes/contabilidad'));
 app.use('/api/productos', require('./routes/productos'));
-app.use('/api/facturaRoutes', require('./routes/facturas'));
-app.use('/api/auth', authRoutes); 
-app.use(express.static(path.join(__dirname)));
+app.use('/api/auth', authRoutes);
 app.use('/api/empresa', empresaRoutes);
 app.use('/api/movimientos', movimientosRoutes);
+
+// Puerto
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`));
