@@ -11,7 +11,7 @@ router.get('/cliente/:nombre', facturaController.obtenerFacturasPorCliente);
 router.get('/saldos-pendientes', facturaController.obtenerSaldosPendientes);
 router.get('/saldos-pendientes/:cliente', facturaController.obtenerSaldosPendientesPorCliente);
 router.patch('/:id/abonar', facturaController.registrarAbono);
-router.put('/facturas/:id/abono', facturaController.registrarAbono);
+//router.put('/facturas/:id/abono', facturaController.registrarAbono);
 
 router.get('/detalle/:id', authMiddleware, facturaController.obtenerFacturaPorId);
 router.patch('/detalle/:id', authMiddleware, facturaController.actualizarFactura);
