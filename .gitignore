@@ -41,3 +41,4 @@ build/
 # Archivos temporales
 *.tmp
 *.temp
+config/cloudinary.js
