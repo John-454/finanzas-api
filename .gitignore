@@ -41,4 +41,6 @@ build/
 # Archivos temporales
 *.tmp
 *.temp
+*.pid
+*.bak
 config/cloudinary.js
