@@ -480,7 +480,7 @@ exports.cerrarMes = async (req, res) => {
       }
     ]);
 
-    // Gastos
+    // Gastos (desglosado por medio de pago)
     const gastos = await GastoDiario.aggregate([
       {
         $match: {
@@ -490,17 +490,38 @@ exports.cerrarMes = async (req, res) => {
       },
       {
         $group: {
-          _id: null,
-          totalGastos: { $sum: "$monto" },
-          cantidadGastos: { $sum: 1 }
+          _id: '$tipo',
+          total: { $sum: '$monto' }
+        }
+      }
+    ]);
+
+    // Abonos desglosados por medio de pago (historialAbonos[].tipo)
+    const abonosPorMedio = await Factura.aggregate([
+      {
+        $match: {
+          usuarioId: new mongoose.Types.ObjectId(req.usuario.id),
+          fecha: { $gte: inicio, $lte: fin }
+        }
+      },
+      { $unwind: '$historialAbonos' },
+      {
+        $group: {
+          _id: '$historialAbonos.tipo',
+          total: { $sum: '$historialAbonos.monto' }
         }
       }
     ]);
 
     const totalVentas = ventas[0]?.totalVentas || 0;
     const totalAbonos = ventas[0]?.totalAbonos || 0;
-    const totalGastos = gastos[0]?.totalGastos || 0;
+    const totalGastos = gastos.reduce((sum, g) => sum + g.total, 0);
     const saldoNeto = totalAbonos - totalGastos;
+
+    const totalAbonadoEfectivo = abonosPorMedio.find((a) => a._id === 'efectivo')?.total || 0;
+    const totalAbonadoNequi = abonosPorMedio.find((a) => a._id === 'nequi')?.total || 0;
+    const totalGastosEfectivo = gastos.find((g) => g._id === 'efectivo')?.total || 0;
+    const totalGastosNequi = gastos.find((g) => g._id === 'nequi')?.total || 0;
 
     // Guardar
     const resumen = new ResumenMensual({
@@ -510,7 +531,13 @@ exports.cerrarMes = async (req, res) => {
       totalVentas,
       totalAbonos,
       totalGastos,
-      saldoNeto
+      saldoNeto,
+      totalAbonadoEfectivo,
+      totalAbonadoNequi,
+      totalGastosEfectivo,
+      totalGastosNequi,
+      saldoEfectivo: totalAbonadoEfectivo - totalGastosEfectivo,
+      saldoNequi: totalAbonadoNequi - totalGastosNequi
     });
 
     await resumen.save();
@@ -553,7 +580,7 @@ exports.resumenMensualPorMes = async (req, res) => {
     const { inicio } = crearRangoLocalUTC(primerDia);
     const { fin } = crearRangoLocalUTC(ultimoDia);
 
-    // Ventas
+    // Totales por venta (sin desglose)
     const ventas = await Factura.aggregate([
       {
         $match: {
@@ -572,7 +599,24 @@ exports.resumenMensualPorMes = async (req, res) => {
       }
     ]);
 
-    // Gastos
+    // Abonos desglosados por medio de pago (historialAbonos[].tipo)
+    const abonosPorMedio = await Factura.aggregate([
+      {
+        $match: {
+          usuarioId: new mongoose.Types.ObjectId(req.usuario.id),
+          fecha: { $gte: inicio, $lte: fin }
+        }
+      },
+      { $unwind: '$historialAbonos' },
+      {
+        $group: {
+          _id: '$historialAbonos.tipo',
+          total: { $sum: '$historialAbonos.monto' }
+        }
+      }
+    ]);
+
+    // Gastos totales y desglosados por medio de pago (tipo)
     const gastos = await GastoDiario.aggregate([
       {
         $match: {
@@ -582,22 +626,42 @@ exports.resumenMensualPorMes = async (req, res) => {
       },
       {
         $group: {
-          _id: null,
-          totalGastos: { $sum: "$monto" },
-          cantidadGastos: { $sum: 1 }
+          _id: '$tipo',
+          total: { $sum: '$monto' },
+          cantidad: { $sum: 1 }
         }
       }
     ]);
 
     const totalVentas = ventas[0]?.totalVentas || 0;
     const totalAbonado = ventas[0]?.totalAbonado || 0;
-    const totalGastos = gastos[0]?.totalGastos || 0;
+    const saldoPendiente = ventas[0]?.saldoPendiente || 0;
+
+    const abonadoEfectivo = abonosPorMedio.find((a) => a._id === 'efectivo')?.total || 0;
+    const abonadoNequi = abonosPorMedio.find((a) => a._id === 'nequi')?.total || 0;
+
+    const totalGastos = gastos.reduce((sum, g) => sum + g.total, 0);
+    const gastosEfectivo = gastos.find((g) => g._id === 'efectivo')?.total || 0;
+    const gastosNequi = gastos.find((g) => g._id === 'nequi')?.total || 0;
+
     const saldoNeto = totalAbonado - totalGastos;
+    const efectivoDisponible = abonadoEfectivo - gastosEfectivo;
+    const nequiDisponible = abonadoNequi - gastosNequi;
 
     res.json({
-      ventas: { total: totalVentas, totalAbonado },
-      gastos: { total: totalGastos },
-      saldos: { saldoNeto }
+      ventas: {
+        total: totalVentas,
+        totalAbonado,
+        totalAbonadoEfectivo: abonadoEfectivo,
+        totalAbonadoNequi: abonadoNequi,
+        saldoPendiente
+      },
+      gastos: {
+        total: totalGastos,
+        totalGastosEfectivo: gastosEfectivo,
+        totalGastosNequi: gastosNequi
+      },
+      saldos: { saldoNeto, efectivoDisponible, nequiDisponible }
     });
 
   } catch (err) {

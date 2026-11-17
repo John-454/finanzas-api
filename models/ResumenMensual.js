@@ -8,6 +8,13 @@ const ResumenMensualSchema = new mongoose.Schema({
   totalAbonos: { type: Number, default: 0 },
   totalGastos: { type: Number, default: 0 },
   saldoNeto: { type: Number, default: 0 },
+  // Desglose por medio de pago (opcional, cierres nuevos)
+  totalAbonadoEfectivo: { type: Number, default: 0 },
+  totalAbonadoNequi: { type: Number, default: 0 },
+  totalGastosEfectivo: { type: Number, default: 0 },
+  totalGastosNequi: { type: Number, default: 0 },
+  saldoEfectivo: { type: Number, default: 0 },
+  saldoNequi: { type: Number, default: 0 },
   creadoEn: { type: Date, default: Date.now }
 });
 
