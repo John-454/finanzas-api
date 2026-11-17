@@ -72,9 +72,7 @@ exports.crearFactura = async (req, res) => {
 
 exports.obtenerFacturas = async (req, res) => {
   try {
-    console.log('Usuario en request:', req.usuario);
     const facturas = await Factura.find({ usuarioId: req.usuario.id }).sort({ fecha: -1 });
-    console.log('Tipo de usuarioId:', typeof req.usuario.id, req.usuario.id);
     res.json(facturas);
   } catch (err) {
     console.error('Error en obtenerFacturas:', err);
@@ -193,10 +191,6 @@ exports.obtenerSaldosPendientesPorCliente = async (req, res) => {
 
 exports.obtenerFacturaPorId = async (req, res) => {
   try {
-    console.log('=== DEBUG obtenerFacturaPorId ===');
-    console.log('req.params:', req.params);
-    console.log('req.usuario:', req.usuario);
-    
     const facturaId = req.params.id;
     
     // Validar que el ID sea válido
@@ -206,22 +200,15 @@ exports.obtenerFacturaPorId = async (req, res) => {
     
     const usuarioId = req.usuario.id;
 
-    console.log('facturaId:', facturaId);
-    console.log('usuarioId:', usuarioId);
-
-    const factura = await Factura.findOne({ 
+    const factura = await Factura.findOne({
       _id: facturaId, 
       usuarioId: usuarioId 
     });
 
-    console.log('factura encontrada:', factura);
-
     if (!factura) {
-      console.log('Factura no encontrada');
       return res.status(404).json({ error: 'Factura no encontrada.' });
     }
 
-    console.log('Enviando respuesta exitosa');
     res.json(factura);
   } catch (err) {
     console.error('ERROR en obtenerFacturaPorId:', err);

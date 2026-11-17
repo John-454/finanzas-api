@@ -92,9 +92,6 @@ exports.obtenerResumenPorFecha = async (req, res) => {
 
     const { inicio: inicioDia, fin: finDia } = crearRangoLocalUTC(fecha);
 
-    console.log('Consultando movimientos para fecha:', fecha);
-    console.log('Rango UTC:', inicioDia.toISOString(), 'a', finDia.toISOString());
-
     // Aggregate para obtener resumen
     const resumen = await MovimientoNequi.aggregate([
       {

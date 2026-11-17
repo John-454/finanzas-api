@@ -106,10 +106,6 @@ exports.obtenerGastosDia = async (req, res) => {
     // 🔧 CORREGIDO: Usar función que considera zona horaria local
     const { inicio: inicioDia, fin: finDia } = crearRangoLocalUTC(fecha);
 
-    console.log('Fecha consulta:', fecha);
-    console.log('Inicio día (UTC):', inicioDia.toISOString());
-    console.log('Fin día (UTC):', finDia.toISOString());
-
     const gastos = await GastoDiario.find({
       fecha: {
         $gte: inicioDia,
@@ -201,12 +197,6 @@ exports.resumenDiario = async (req, res) => {
     // 🔧 CORREGIDO: Usar función que considera zona horaria local
     const { inicio: inicioDia, fin: finDia } = crearRangoLocalUTC(fecha);
 
-    console.log("=== DEBUG resumenDiario ===");
-    console.log("Fecha solicitada:", fecha);
-    console.log("Rango UTC ajustado:");
-    console.log("  Inicio (UTC):", inicioDia.toISOString());
-    console.log("  Fin (UTC):", finDia.toISOString());
-
     // Obtener ventas del día (facturas)
     const ventasDelDia = await Factura.aggregate([
       {
@@ -231,8 +221,6 @@ exports.resumenDiario = async (req, res) => {
         }
       }
     ]);
-
-    console.log("Facturas encontradas:", ventasDelDia);
 
     // Obtener gastos del día
     const gastosDelDia = await GastoDiario.aggregate([
@@ -305,10 +293,6 @@ exports.resumenPorRango = async (req, res) => {
     // 🔧 CORREGIDO: Usar función que considera zona horaria local
     const { inicio } = crearRangoLocalUTC(fechaInicio);
     const { fin } = crearRangoLocalUTC(fechaFin);
-
-    console.log("=== DEBUG resumenPorRango ===");
-    console.log("Rango solicitado:", fechaInicio, "a", fechaFin);
-    console.log("Rango UTC ajustado:", inicio.toISOString(), "a", fin.toISOString());
 
     // Aggregate ventas por día
     const ventasPorDia = await Factura.aggregate([
@@ -443,56 +427,6 @@ exports.resumenPorRango = async (req, res) => {
   }
 };
 
-// Mantener el método original para compatibilidad
-exports.resumenMensual = async (req, res) => {
-  try {
-    const resumen = await Factura.aggregate([
-      {
-        $match: {
-          usuarioId: new mongoose.Types.ObjectId(req.usuario.id)
-        }
-      },
-      {
-        $group: {
-          _id: {
-            año: { $year: "$fecha" },
-            mes: { $month: "$fecha" }
-          },
-          totalVentas: { $sum: "$total" },
-          totalAbonado: { $sum: "$abono" },
-          saldoPendiente: { $sum: "$saldo" }
-        }
-      },
-      {
-        $project: {
-          _id: 0,
-          mes: {
-            $concat: [
-              { $toString: "$_id.año" },
-              "-",
-              {
-                $cond: [
-                  { $lt: ["$_id.mes", 10] },
-                  { $concat: ["0", { $toString: "$_id.mes" }] },
-                  { $toString: "$_id.mes" }
-                ]
-              }
-            ]
-          },
-          totalVentas: 1,
-          totalAbonado: 1,
-          saldoPendiente: 1
-        }
-      },
-      { $sort: { mes: -1 } }
-    ]);
-
-    res.json(resumen);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
 const ResumenMensual = require('../models/ResumenMensual');
 
 // 🔧 CERRAR MES CORREGIDO
@@ -511,10 +445,6 @@ exports.cerrarMes = async (req, res) => {
     
     const { inicio } = crearRangoLocalUTC(primerDia);
     const { fin } = crearRangoLocalUTC(ultimoDia);
-
-    console.log("=== DEBUG cerrarMes ===");
-    console.log("Mes:", anio, mes);
-    console.log("Rango UTC:", inicio.toISOString(), "a", fin.toISOString());
 
     // Ventas
     const ventas = await Factura.aggregate([

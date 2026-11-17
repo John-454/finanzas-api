@@ -41,8 +41,6 @@ exports.crearProducto = async (req, res) => {
 
 exports.actualizarProducto = async (req, res) => {
   try {
-    console.log('Actualizando producto:', req.params.id, 'Usuario:', req.usuario.id);
-    
     // Buscamos el producto por ID
     const producto = await Producto.findById(req.params.id);
 
@@ -60,7 +58,6 @@ exports.actualizarProducto = async (req, res) => {
     producto.precioUnitario = req.body.precioUnitario || producto.precioUnitario;
 
     await producto.save();
-    console.log('Producto actualizado exitosamente:', producto._id);
 
     res.json(producto);
   } catch (err) {
@@ -71,24 +68,19 @@ exports.actualizarProducto = async (req, res) => {
 
 exports.eliminarProducto = async (req, res) => {
   try {
-    console.log('Eliminando producto:', req.params.id, 'Usuario:', req.usuario.id);
-    
     // Buscamos el producto por ID
     const producto = await Producto.findById(req.params.id);
 
     if (!producto) {
-      console.log('Producto no encontrado:', req.params.id);
       return res.status(404).json({ error: 'Producto no encontrado.' });
     }
 
     // Verificamos que el producto pertenezca al usuario logueado
     if (producto.usuarioId.toString() !== req.usuario.id) {
-      console.log('Usuario sin permisos. Producto pertenece a:', producto.usuarioId, 'Usuario actual:', req.usuario.id);
       return res.status(403).json({ error: 'No tienes permiso para eliminar este producto.' });
     }
 
     await producto.deleteOne();
-    console.log('Producto eliminado exitosamente:', req.params.id);
 
     res.json({ mensaje: 'Producto eliminado correctamente.' });
   } catch (err) {

@@ -13,9 +13,6 @@ router.delete('/gastos/:id', authMiddleware, contabilidadController.eliminarGast
 router.get('/resumen-diario/:fecha', authMiddleware, contabilidadController.resumenDiario);
 router.get('/resumen-rango', authMiddleware, contabilidadController.resumenPorRango);
 
-// Mantener ruta original para compatibilidad
-router.get('/resumen-mensual', authMiddleware, contabilidadController.resumenMensual);
-
 // Guardar cierre mensual fijo
 router.post('/cerrar-mes', authMiddleware, contabilidadController.cerrarMes);
 // Historial de cierres mensuales
