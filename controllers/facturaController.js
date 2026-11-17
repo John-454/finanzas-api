@@ -161,8 +161,31 @@ exports.obtenerFacturasPorCliente = async (req, res) => {
   }
 };
 
-exports.obtenerSaldosPendientes = async (req, res) => {
+exports.eliminarFactura = async (req, res) => {
   try {
+    const factura = await Factura.findById(req.params.id);
+
+    if (!factura) {
+      return res.status(404).json({ error: 'Factura no encontrada.' });
+    }
+
+    if (factura.usuarioId?.toString() !== req.usuario.id) {
+      return res.status(403).json({ error: 'No tienes permiso para eliminar esta factura.' });
+    }
+
+    // Eliminar los movimientos espejo (abonos) de esta factura
+    await MovimientoNequi.deleteMany({ facturaId: factura._id });
+
+    await factura.deleteOne();
+
+    res.json({ mensaje: 'Factura eliminada correctamente' });
+  } catch (err) {
+    console.error('Error al eliminar factura:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.obtenerSaldosPendientes = async (req, res) => {  try {
     const facturas = await Factura.find({ saldo: { $gt: 0 } }).sort({ fecha: -1 });
     res.json(facturas);
   } catch (err) {

@@ -19,4 +19,6 @@ router.patch('/detalle/:id', authMiddleware, facturaController.actualizarFactura
 router.get('/fecha/:fecha', authMiddleware, facturaController.obtenerFacturasPorFecha);
 router.get('/rango', authMiddleware, facturaController.obtenerFacturasPorRango);
 
+router.delete('/:id', authMiddleware, facturaController.eliminarFactura);
+
 module.exports = router;
