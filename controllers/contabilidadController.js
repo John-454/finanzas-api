@@ -107,6 +107,7 @@ exports.obtenerGastosDia = async (req, res) => {
     const { inicio: inicioDia, fin: finDia } = crearRangoLocalUTC(fecha);
 
     const gastos = await GastoDiario.find({
+      creadoPor: req.usuario.id,
       fecha: {
         $gte: inicioDia,
         $lte: finDia
@@ -132,11 +133,17 @@ exports.eliminarGasto = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const gasto = await GastoDiario.findByIdAndDelete(id);
-    
+    const gasto = await GastoDiario.findById(id);
+
     if (!gasto) {
       return res.status(404).json({ error: 'Gasto no encontrado' });
     }
+
+    if (gasto.creadoPor?.toString() !== req.usuario.id) {
+      return res.status(403).json({ error: 'No tienes permiso para eliminar este gasto.' });
+    }
+
+    await gasto.deleteOne();
 
     res.json({
       mensaje: 'Gasto eliminado exitosamente',
@@ -160,6 +167,16 @@ exports.actualizarGasto = async (req, res) => {
       });
     }
 
+    const gastoExistente = await GastoDiario.findById(id);
+
+    if (!gastoExistente) {
+      return res.status(404).json({ error: 'Gasto no encontrado' });
+    }
+
+    if (gastoExistente.creadoPor?.toString() !== req.usuario.id) {
+      return res.status(403).json({ error: 'No tienes permiso para actualizar este gasto.' });
+    }
+
     const gastoActualizado = await GastoDiario.findByIdAndUpdate(
   id,
   {
@@ -170,10 +187,6 @@ exports.actualizarGasto = async (req, res) => {
   },
   { new: true, runValidators: true }
 );
-
-    if (!gastoActualizado) {
-      return res.status(404).json({ error: 'Gasto no encontrado' });
-    }
 
     res.json({
       mensaje: 'Gasto actualizado exitosamente',
@@ -226,6 +239,7 @@ exports.resumenDiario = async (req, res) => {
     const gastosDelDia = await GastoDiario.aggregate([
       {
         $match: {
+          creadoPor: new mongoose.Types.ObjectId(req.usuario.id),
           fecha: {
             $gte: inicioDia,
             $lte: finDia
@@ -335,6 +349,7 @@ exports.resumenPorRango = async (req, res) => {
     const gastosPorDia = await GastoDiario.aggregate([
       {
         $match: {
+          creadoPor: new mongoose.Types.ObjectId(req.usuario.id),
           fecha: { $gte: inicio, $lte: fin }
         }
       },
