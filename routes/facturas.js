@@ -7,9 +7,13 @@ const authMiddleware = require('../middlewares/authMiddleware');
 router.post('/', authMiddleware, facturaController.crearFactura);
 router.get('/', authMiddleware, facturaController.obtenerFacturas);
 
-router.get('/cliente/:nombre', facturaController.obtenerFacturasPorCliente);
-router.get('/saldos-pendientes', facturaController.obtenerSaldosPendientes);
-router.get('/saldos-pendientes/:cliente', facturaController.obtenerSaldosPendientesPorCliente);
+router.get('/cliente/:nombre', authMiddleware, facturaController.obtenerFacturasPorCliente);
+router.get('/saldos-pendientes', authMiddleware, facturaController.obtenerSaldosPendientes);
+router.get(
+  '/saldos-pendientes/:cliente',
+  authMiddleware,
+  facturaController.obtenerSaldosPendientesPorCliente,
+);
 router.patch('/:id/abonar', facturaController.registrarAbono);
 //router.put('/facturas/:id/abono', facturaController.registrarAbono);
 

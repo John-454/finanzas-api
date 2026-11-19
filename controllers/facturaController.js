@@ -4,6 +4,12 @@ const path = require('path');
 const fs = require('fs');
 const MovimientoNequi = require('../models/MovimientoNequi');
 
+// Escapa caracteres de regex para que la búsqueda por texto sea literal
+function crearRegexSegura(texto) {
+  const escapado = String(texto).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(escapado, 'i');
+}
+
 exports.crearFactura = async (req, res) => {
   try {
     const { cliente, productos, total, abono = 0, tipoAbono } = req.body;
@@ -148,8 +154,10 @@ exports.obtenerFacturasPorCliente = async (req, res) => {
   try {
     const cliente = req.params.nombre;
 
-    const facturas = await Factura.find({ cliente: { $regex: new RegExp(cliente, 'i') } })
-      .sort({ fecha: -1 });
+    const facturas = await Factura.find({
+      usuarioId: req.usuario.id,
+      cliente: { $regex: crearRegexSegura(cliente) },
+    }).sort({ fecha: -1 });
 
     if (facturas.length === 0) {
       return res.status(404).json({ mensaje: `No se encontraron facturas para "${cliente}".` });
@@ -185,8 +193,12 @@ exports.eliminarFactura = async (req, res) => {
   }
 };
 
-exports.obtenerSaldosPendientes = async (req, res) => {  try {
-    const facturas = await Factura.find({ saldo: { $gt: 0 } }).sort({ fecha: -1 });
+exports.obtenerSaldosPendientes = async (req, res) => {
+  try {
+    const facturas = await Factura.find({
+      usuarioId: req.usuario.id,
+      saldo: { $gt: 0 },
+    }).sort({ fecha: -1 });
     res.json(facturas);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -198,7 +210,8 @@ exports.obtenerSaldosPendientesPorCliente = async (req, res) => {
     const cliente = req.params.cliente;
 
     const facturas = await Factura.find({
-      cliente: { $regex: new RegExp(cliente, 'i') },
+      usuarioId: req.usuario.id,
+      cliente: { $regex: crearRegexSegura(cliente) },
       saldo: { $gt: 0 }
     }).sort({ fecha: -1 });
 
