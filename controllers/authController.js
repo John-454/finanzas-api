@@ -8,7 +8,7 @@ const generarToken = (id) => {
 };
 
 // Registrar usuario
-exports.registrar = async (req, res) => {
+exports.registrar = async (req, res, next) => {
   try {
     const { nombre, email, password } = req.body;
     const existe = await Usuario.findOne({ email });
@@ -25,12 +25,12 @@ exports.registrar = async (req, res) => {
       token: generarToken(usuario._id),
     });
   } catch (error) {
-    res.status(500).json({ msg: 'Error en el servidor', error });
+    return next(error);
   }
 };
 
 // Login usuario
-exports.login = async (req, res) => {
+exports.login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
     const usuario = await Usuario.findOne({ email });
@@ -46,6 +46,6 @@ exports.login = async (req, res) => {
       res.status(400).json({ msg: 'Credenciales inválidas' });
     }
   } catch (error) {
-    res.status(500).json({ msg: 'Error en el servidor', error });
+    return next(error);
   }
 };

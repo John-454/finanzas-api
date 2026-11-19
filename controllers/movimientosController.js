@@ -17,7 +17,7 @@ function crearRangoLocalUTC(fechaString, offsetHoras = -5) {
 }
 
 // Registrar un movimiento (abono o gasto)
-exports.registrarMovimiento = async (req, res) => {
+exports.registrarMovimiento = async (req, res, next) => {
   try {
     const { tipo, monto, metodoPago, descripcion, facturaId, gastoId, cliente, fecha } = req.body;
     // Validaciones
@@ -82,12 +82,12 @@ exports.registrarMovimiento = async (req, res) => {
     });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 
 // Obtener resumen de movimientos por fecha
-exports.obtenerResumenPorFecha = async (req, res) => {
+exports.obtenerResumenPorFecha = async (req, res, next) => {
   try {
     const { fecha } = req.params;
 
@@ -171,12 +171,12 @@ exports.obtenerResumenPorFecha = async (req, res) => {
 
   } catch (err) {
     console.error('Error al obtener resumen:', err);
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 
 // Obtener movimientos detallados por fecha
-exports.obtenerMovimientosPorFecha = async (req, res) => {
+exports.obtenerMovimientosPorFecha = async (req, res, next) => {
   try {
     const { fecha } = req.params;
 
@@ -201,12 +201,12 @@ exports.obtenerMovimientosPorFecha = async (req, res) => {
     });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 
 // Obtener resumen por rango de fechas
-exports.obtenerResumenPorRango = async (req, res) => {
+exports.obtenerResumenPorRango = async (req, res, next) => {
   try {
     const { fechaInicio, fechaFin } = req.query;
 
@@ -291,12 +291,12 @@ exports.obtenerResumenPorRango = async (req, res) => {
     });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 
 // Eliminar un movimiento
-exports.eliminarMovimiento = async (req, res) => {
+exports.eliminarMovimiento = async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -315,7 +315,7 @@ exports.eliminarMovimiento = async (req, res) => {
     });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 

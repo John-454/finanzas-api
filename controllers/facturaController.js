@@ -10,7 +10,7 @@ function crearRegexSegura(texto) {
   return new RegExp(escapado, 'i');
 }
 
-exports.crearFactura = async (req, res) => {
+exports.crearFactura = async (req, res, next) => {
   try {
     const { cliente, productos, total, abono = 0, tipoAbono } = req.body;
     const usuarioId = req.usuario.id;
@@ -71,22 +71,22 @@ exports.crearFactura = async (req, res) => {
     });
 
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    return next(err);
   }
 };
 
 
-exports.obtenerFacturas = async (req, res) => {
+exports.obtenerFacturas = async (req, res, next) => {
   try {
     const facturas = await Factura.find({ usuarioId: req.usuario.id }).sort({ fecha: -1 });
     res.json(facturas);
   } catch (err) {
     console.error('Error en obtenerFacturas:', err);
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 
-exports.registrarAbono = async (req, res) => {
+exports.registrarAbono = async (req, res, next) => {
   try {
     const facturaId = req.params.id;
     const { abono, tipo } = req.body;
@@ -149,12 +149,12 @@ exports.registrarAbono = async (req, res) => {
 
   } catch (err) {
     console.error('Error al registrar abono:', err);
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 
 
-exports.obtenerFacturasPorCliente = async (req, res) => {
+exports.obtenerFacturasPorCliente = async (req, res, next) => {
   try {
     const cliente = req.params.nombre;
 
@@ -169,11 +169,11 @@ exports.obtenerFacturasPorCliente = async (req, res) => {
 
     res.json(facturas);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 
-exports.eliminarFactura = async (req, res) => {
+exports.eliminarFactura = async (req, res, next) => {
   try {
     const factura = await Factura.findById(req.params.id);
 
@@ -193,11 +193,11 @@ exports.eliminarFactura = async (req, res) => {
     res.json({ mensaje: 'Factura eliminada correctamente' });
   } catch (err) {
     console.error('Error al eliminar factura:', err);
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 
-exports.obtenerSaldosPendientes = async (req, res) => {
+exports.obtenerSaldosPendientes = async (req, res, next) => {
   try {
     const facturas = await Factura.find({
       usuarioId: req.usuario.id,
@@ -205,11 +205,11 @@ exports.obtenerSaldosPendientes = async (req, res) => {
     }).sort({ fecha: -1 });
     res.json(facturas);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 
-exports.obtenerSaldosPendientesPorCliente = async (req, res) => {
+exports.obtenerSaldosPendientesPorCliente = async (req, res, next) => {
   try {
     const cliente = req.params.cliente;
 
@@ -225,11 +225,11 @@ exports.obtenerSaldosPendientesPorCliente = async (req, res) => {
 
     res.json(facturas);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 
-exports.obtenerFacturaPorId = async (req, res) => {
+exports.obtenerFacturaPorId = async (req, res, next) => {
   try {
     const facturaId = req.params.id;
     
@@ -253,11 +253,11 @@ exports.obtenerFacturaPorId = async (req, res) => {
   } catch (err) {
     console.error('ERROR en obtenerFacturaPorId:', err);
     console.error('Stack trace:', err.stack);
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 
-exports.actualizarFactura = async (req, res) => {
+exports.actualizarFactura = async (req, res, next) => {
   try {
     const facturaId = req.params.id;
     const { productos } = req.body;
@@ -317,7 +317,7 @@ exports.actualizarFactura = async (req, res) => {
 
   } catch (err) {
     console.error('Error en actualizarFactura:', err);
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 
@@ -328,7 +328,7 @@ function crearFechaLocal(fechaString) {
 }
 
 // Obtener facturas por fecha específica
-exports.obtenerFacturasPorFecha = async (req, res) => {
+exports.obtenerFacturasPorFecha = async (req, res, next) => {
   try {
     const { fecha } = req.params;
     
@@ -368,12 +368,12 @@ const finDia = new Date(year, month - 1, day, 23, 59, 59, 999);
     res.json(resumen);
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 
 // Obtener facturas por rango de fechas
-exports.obtenerFacturasPorRango = async (req, res) => {
+exports.obtenerFacturasPorRango = async (req, res, next) => {
   try {
     const { fechaInicio, fechaFin } = req.query;
 
@@ -409,7 +409,7 @@ exports.obtenerFacturasPorRango = async (req, res) => {
     res.json(resumen);
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 

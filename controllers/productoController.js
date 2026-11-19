@@ -1,27 +1,27 @@
 const Producto = require('../models/Producto');
 
-exports.obtenerProductos = async (req, res) => {
+exports.obtenerProductos = async (req, res, next) => {
   try {
     const productos = await Producto.find({ usuarioId: req.usuario.id }).sort({ nombre: 1 });
     res.json(productos);
   } catch (err) {
     console.error('Error al obtener productos:', err);
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 
-exports.obtenerProductoPorId = async (req, res) => {
+exports.obtenerProductoPorId = async (req, res, next) => {
   try {
     const producto = await Producto.findById(req.params.id);
     if (!producto) return res.status(404).json({ error: 'Producto no encontrado.' });
     res.json(producto);
   } catch (err) {
     console.error('Error al obtener producto por ID:', err);
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 
-exports.crearProducto = async (req, res) => {
+exports.crearProducto = async (req, res, next) => {
   try {
     const {nombre, precioUnitario} = req.body;
 
@@ -35,11 +35,11 @@ exports.crearProducto = async (req, res) => {
     res.status(201).json(producto);
   } catch (err) {
     console.error('Error al crear producto:', err);
-    res.status(400).json({ error: err.message });
+    return next(err);
   }
 };
 
-exports.actualizarProducto = async (req, res) => {
+exports.actualizarProducto = async (req, res, next) => {
   try {
     // Buscamos el producto por ID
     const producto = await Producto.findById(req.params.id);
@@ -62,11 +62,11 @@ exports.actualizarProducto = async (req, res) => {
     res.json(producto);
   } catch (err) {
     console.error('Error al actualizar producto:', err);
-    res.status(400).json({ error: err.message });
+    return next(err);
   }
 };
 
-exports.eliminarProducto = async (req, res) => {
+exports.eliminarProducto = async (req, res, next) => {
   try {
     // Buscamos el producto por ID
     const producto = await Producto.findById(req.params.id);
@@ -85,11 +85,11 @@ exports.eliminarProducto = async (req, res) => {
     res.json({ mensaje: 'Producto eliminado correctamente.' });
   } catch (err) {
     console.error('Error al eliminar producto:', err);
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 
-exports.buscarPorNombre = async (req, res) => {
+exports.buscarPorNombre = async (req, res, next) => {
   try {
     const termino = req.query.nombre;
     if (!termino) {
@@ -104,6 +104,6 @@ exports.buscarPorNombre = async (req, res) => {
     res.json(productos);
   } catch (err) {
     console.error('Error al buscar productos:', err);
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };

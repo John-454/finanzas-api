@@ -41,7 +41,7 @@ const upload = multer({
 });
 
 // Obtener empresa del usuario autenticado
-exports.obtenerEmpresa = async (req, res) => {
+exports.obtenerEmpresa = async (req, res, next) => {
   try {
     const empresa = await Empresa.findOne({ usuarioId: req.usuario.id });
     
@@ -52,12 +52,12 @@ exports.obtenerEmpresa = async (req, res) => {
     res.json(empresa);
   } catch (err) {
     console.error('Error al obtener empresa:', err);
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 
 // Crear empresa (solo una por usuario)
-exports.crearEmpresa = async (req, res) => {
+exports.crearEmpresa = async (req, res, next) => {
   try {
     // Verificar si el usuario ya tiene una empresa
     const empresaExistente = await Empresa.findOne({ usuarioId: req.usuario.id });
@@ -96,12 +96,12 @@ exports.crearEmpresa = async (req, res) => {
       });
     }
     
-    res.status(400).json({ error: err.message });
+    return next(err);
   }
 };
 
 // Actualizar empresa del usuario
-exports.actualizarEmpresa = async (req, res) => {
+exports.actualizarEmpresa = async (req, res, next) => {
   try {
     const empresa = await Empresa.findOne({ usuarioId: req.usuario.id });
 
@@ -143,12 +143,12 @@ exports.actualizarEmpresa = async (req, res) => {
       });
     }
     
-    res.status(400).json({ error: err.message });
+    return next(err);
   }
 };
 
 // Eliminar empresa del usuario
-exports.eliminarEmpresa = async (req, res) => {
+exports.eliminarEmpresa = async (req, res, next) => {
   try {
     const empresa = await Empresa.findOne({ usuarioId: req.usuario.id });
 
@@ -169,12 +169,12 @@ exports.eliminarEmpresa = async (req, res) => {
     res.json({ mensaje: 'Empresa eliminada correctamente' });
   } catch (err) {
     console.error('Error al eliminar empresa:', err);
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 
 // Eliminar solo el logo de la empresa
-exports.eliminarLogo = async (req, res) => {
+exports.eliminarLogo = async (req, res, next) => {
   try {
     const empresa = await Empresa.findOne({ usuarioId: req.usuario.id });
 
@@ -199,7 +199,7 @@ exports.eliminarLogo = async (req, res) => {
     res.json({ mensaje: 'Logo eliminado correctamente', empresa });
   } catch (err) {
     console.error('Error al eliminar logo:', err);
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 

@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const MovimientoNequi = require('../models/MovimientoNequi');
 
 // Agregar un nuevo gasto diario
-exports.agregarGasto = async (req, res) => {
+exports.agregarGasto = async (req, res, next) => {
   try {
     const { descripcion, monto, categoria, fecha, tipo } = req.body;
 
@@ -69,7 +69,7 @@ exports.agregarGasto = async (req, res) => {
     });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 
@@ -95,7 +95,7 @@ function crearRangoLocalUTC(fechaString, offsetHoras = -5) {
 
 
 // Obtener gastos de un día específico
-exports.obtenerGastosDia = async (req, res) => {
+exports.obtenerGastosDia = async (req, res, next) => {
   try {
     const { fecha } = req.params;
     
@@ -124,12 +124,12 @@ exports.obtenerGastosDia = async (req, res) => {
     });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 
 // Eliminar un gasto específico
-exports.eliminarGasto = async (req, res) => {
+exports.eliminarGasto = async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -151,12 +151,12 @@ exports.eliminarGasto = async (req, res) => {
     });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 
 // Actualizar un gasto existente
-exports.actualizarGasto = async (req, res) => {
+exports.actualizarGasto = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { descripcion, monto, categoria, tipo } = req.body;
@@ -194,12 +194,12 @@ exports.actualizarGasto = async (req, res) => {
     });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 
 // 🔧 RESUMEN DIARIO CORREGIDO
-exports.resumenDiario = async (req, res) => {
+exports.resumenDiario = async (req, res, next) => {
   try {
     const { fecha } = req.params;
     
@@ -289,12 +289,12 @@ exports.resumenDiario = async (req, res) => {
     res.json(resumen);
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 
 // 🔧 RESUMEN POR RANGO CORREGIDO
-exports.resumenPorRango = async (req, res) => {
+exports.resumenPorRango = async (req, res, next) => {
   try {
     const { fechaInicio, fechaFin } = req.query;
 
@@ -438,14 +438,14 @@ exports.resumenPorRango = async (req, res) => {
     });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 
 const ResumenMensual = require('../models/ResumenMensual');
 
 // 🔧 CERRAR MES CORREGIDO
-exports.cerrarMes = async (req, res) => {
+exports.cerrarMes = async (req, res, next) => {
   try {
     const { anio, mes } = req.body;
 
@@ -545,12 +545,12 @@ exports.cerrarMes = async (req, res) => {
     res.json({ mensaje: "Cierre mensual guardado", resumen });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 
 // Listar historial de cierres mensuales guardados
-exports.historialMensual = async (req, res) => {
+exports.historialMensual = async (req, res, next) => {
   try {
     const historial = await ResumenMensual.find({
       usuarioId: req.usuario.id
@@ -559,12 +559,12 @@ exports.historialMensual = async (req, res) => {
 
     res.json(historial);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };
 
 // 🔧 RESUMEN MENSUAL POR MES CORREGIDO
-exports.resumenMensualPorMes = async (req, res) => {
+exports.resumenMensualPorMes = async (req, res, next) => {
   try {
     const { anio, mes } = req.params;
 
@@ -665,6 +665,6 @@ exports.resumenMensualPorMes = async (req, res) => {
     });
 
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return next(err);
   }
 };

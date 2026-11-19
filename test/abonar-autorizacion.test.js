@@ -73,7 +73,10 @@ test('registrarAbono sobre factura PROPIA → pasa la verificación de propiedad
   const req = reqAbono('000000000000000000000999');
   req.usuario.id = '000000000000000000000001';
   const res = crearRes();
-  await facturaController.registrarAbono(req, res);
+  let errorRecibido = null;
+  await facturaController.registrarAbono(req, res, (e) => {
+    errorRecibido = e;
+  });
 
   // La actualización del saldo ocurre antes de guardar el movimiento
   assert.equal(factura.abono, 1000);
@@ -81,4 +84,6 @@ test('registrarAbono sobre factura PROPIA → pasa la verificación de propiedad
   assert.equal(factura.historialAbonos.length, 1);
   // No debe ser rechazada por permisos
   assert.notEqual(res.statusCode, 403);
+  // El error esperado (si lo hay) es de conexión a Mongo, no de autorización
+  assert.ok(errorRecibido === null || !/permiso/i.test(errorRecibido.message));
 });

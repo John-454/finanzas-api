@@ -35,6 +35,10 @@ app.use('/api/auth', authRoutes);
 app.use('/api/empresa', empresaRoutes);
 app.use('/api/movimientos', movimientosRoutes);
 
+// Manejo central de errores (debe ir después de las rutas)
+const { manejadorErrores } = require('./middlewares/errorHandler');
+app.use(manejadorErrores);
+
 // Puerto
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`));
