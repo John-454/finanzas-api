@@ -40,4 +40,8 @@ const gastoDiarioSchema = new mongoose.Schema({
 // Índice para búsquedas por fecha
 gastoDiarioSchema.index({ fecha: 1 });
 
+// Índice compuesto: filtra por usuario (igualdad) y recorre el rango de fechas.
+// Necesario porque todas las consultas del resumen filtran por creadoPor + fecha.
+gastoDiarioSchema.index({ creadoPor: 1, fecha: -1 });
+
 module.exports = mongoose.model('GastoDiario', gastoDiarioSchema);

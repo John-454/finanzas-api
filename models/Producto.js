@@ -10,4 +10,7 @@ const productoSchema = new mongoose.Schema({
   }
 });
 
+// Índice compuesto: listado y búsqueda por usuario, ordenando por nombre
+productoSchema.index({ usuarioId: 1, nombre: 1 });
+
 module.exports = mongoose.model('Producto', productoSchema);

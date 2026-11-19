@@ -40,4 +40,8 @@ const facturaSchema = new mongoose.Schema({
   }
 });
 
+// Índice compuesto: todas las consultas filtran por usuario y ordenan por fecha
+// (listado, resumen diario, resumen mensual y rangos)
+facturaSchema.index({ usuarioId: 1, fecha: -1 });
+
 module.exports = mongoose.model('Factura', facturaSchema);
