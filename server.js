@@ -14,8 +14,9 @@ const empresaRoutes = require('./routes/empresa');
 const app = express();
 
 // Middlewares globales
-app.use(cors());
-app.use(express.json());
+const { crearCorsOptions } = require('./middlewares/corsConfig');
+app.use(cors(crearCorsOptions()));
+app.use(express.json({ limit: '100kb' }));
 
 // Servir archivos estáticos - DEBE IR ANTES DE LAS RUTAS DE API
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
