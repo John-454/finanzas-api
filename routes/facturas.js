@@ -14,7 +14,7 @@ router.get(
   authMiddleware,
   facturaController.obtenerSaldosPendientesPorCliente,
 );
-router.patch('/:id/abonar', facturaController.registrarAbono);
+router.patch('/:id/abonar', authMiddleware, facturaController.registrarAbono);
 //router.put('/facturas/:id/abono', facturaController.registrarAbono);
 
 router.get('/detalle/:id', authMiddleware, facturaController.obtenerFacturaPorId);

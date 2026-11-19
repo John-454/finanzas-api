@@ -104,6 +104,10 @@ exports.registrarAbono = async (req, res) => {
       return res.status(404).json({ error: 'Factura no encontrada.' });
     }
 
+    if (factura.usuarioId?.toString() !== req.usuario.id) {
+      return res.status(403).json({ error: 'No tienes permiso para abonar a esta factura.' });
+    }
+
     // Actualizar abono y saldo
     factura.abono += abono;
     factura.saldo = factura.total - factura.abono;
