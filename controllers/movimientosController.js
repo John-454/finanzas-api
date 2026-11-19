@@ -20,7 +20,6 @@ function crearRangoLocalUTC(fechaString, offsetHoras = -5) {
 exports.registrarMovimiento = async (req, res) => {
   try {
     const { tipo, monto, metodoPago, descripcion, facturaId, gastoId, cliente, fecha } = req.body;
-
     // Validaciones
     if (!tipo || !monto || !metodoPago || !descripcion) {
       return res.status(400).json({ 
@@ -40,6 +39,15 @@ exports.registrarMovimiento = async (req, res) => {
       return res.status(400).json({ error: 'El monto debe ser mayor a cero' });
     }
 
+    // Un movimiento manual NO puede referenciar facturas o gastos existentes:
+    // esos vínculos solo los crea el servidor (abonos y gastos con su espejo).
+    // Evita IDOR: que un usuario apunte a registros de otra cuenta.
+    if (facturaId || gastoId) {
+      return res.status(400).json({
+        error: 'No se permite asociar facturaId ni gastoId desde un movimiento manual',
+      });
+    }
+
     // Crear fecha
     let fechaMovimiento;
     if (fecha) {
@@ -57,14 +65,11 @@ exports.registrarMovimiento = async (req, res) => {
       ));
     }
 
-    const nuevoMovimiento = new MovimientoNequi({
-      fecha: fechaMovimiento,
+    const nuevoMovimiento = new MovimientoNequi({      fecha: fechaMovimiento,
       tipo,
       monto: parseFloat(monto),
       metodoPago,
       descripcion: descripcion.trim(),
-      facturaId: facturaId || null,
-      gastoId: gastoId || null,
       cliente: cliente || null,
       usuarioId: req.usuario.id
     });
