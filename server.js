@@ -13,6 +13,9 @@ const empresaRoutes = require('./routes/empresa');
 
 const app = express();
 
+// Detrás del proxy de Railway/Vercel: usa X-Forwarded-For para la IP real
+app.set('trust proxy', 1);
+
 // Middlewares globales
 const { crearCorsOptions } = require('./middlewares/corsConfig');
 app.use(cors(crearCorsOptions()));
