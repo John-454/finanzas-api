@@ -4,15 +4,17 @@
 // y credential stuffing.
 
 const rateLimit = require('express-rate-limit');
+// Normaliza direcciones IPv6 (/64) para que no se puedan eludir los límites
+const { ipKeyGenerator } = rateLimit;
 
 const ventanaMs = 15 * 60 * 1000; // 15 minutos
 
-/** Clave de límite: IP + email normalizado (no bloquea toda una red) */
+/** Clave de límite: IP normalizada + email (no bloquea toda una red) */
 function claveLogin(req) {
   const email = String(req.body?.email || '')
     .toLowerCase()
     .trim();
-  return `${req.ip}|${email}`;
+  return `${ipKeyGenerator(req.ip)}|${email}`;
 }
 
 /**
