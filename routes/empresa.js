@@ -9,6 +9,9 @@ router.use(authMiddleware);
 // GET /api/empresas - Obtener empresa del usuario autenticado
 router.get('/', empresaController.obtenerEmpresa);
 
+// GET /api/empresas/logo - Servir el logo (privado, solo su dueño)
+router.get('/logo', empresaController.obtenerLogo);
+
 // POST /api/empresas - Crear nueva empresa (con logo opcional)
 router.post('/', 
   empresaController.uploadLogo, // Middleware para subir archivo

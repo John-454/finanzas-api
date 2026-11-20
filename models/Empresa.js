@@ -21,9 +21,13 @@ const empresaSchema = new mongoose.Schema({
     required: true,
     trim: true 
   },
-  logo: { 
-    type: String, // URL o ruta de la imagen
-    default: null 
+  logo: {
+    type: String, // Ruta lógica servida por /api/empresa/logo
+    default: null
+  },
+  logoId: {
+    type: mongoose.Schema.Types.ObjectId, // Archivo en GridFS (bucket "logos")
+    default: null
   },
   usuarioId: {
     type: mongoose.Schema.Types.ObjectId,

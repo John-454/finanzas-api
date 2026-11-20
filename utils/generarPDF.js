@@ -2,6 +2,7 @@ const PDFDocument = require('pdfkit');
 const fs          = require('fs');
 const path        = require('path');
 const Empresa     = require('../models/Empresa');
+const { abrirLogo } = require('../services/logoService');
 
 async function generarPDF(factura, callback) {
   // ── Buscar empresa del usuario ──────────────────────────────
@@ -66,19 +67,21 @@ async function generarPDF(factura, callback) {
     try {
       let logoSource = null;
 
-      // Si es URL (Cloudinary, CDN, etc.)
-      if (
-        empresa.logo.startsWith('http://') ||
-        empresa.logo.startsWith('https://')
-      ) {
-        const response = await fetch(empresa.logo);
-
-        if (response.ok) {
-          logoSource = Buffer.from(await response.arrayBuffer());
+      // El logo vive en GridFS: se lee del bucket del usuario, nunca por URL externa.
+      if (empresa.logoId) {
+        try {
+          const logo = await abrirLogo(factura.usuarioId, empresa.logoId);
+          if (logo) {
+            const partes = [];
+            for await (const chunk of logo.stream) partes.push(chunk);
+            logoSource = Buffer.concat(partes);
+          }
+        } catch (e) {
+          console.error('No se pudo leer el logo:', e.message);
         }
       }
-      // Si es ruta local
-      else {
+      // Logos antiguos en disco (solo rutas internas; se rechazan URLs externas → SSRF)
+      else if (!/^https?:\/\//i.test(empresa.logo)) {
         const logoPath = path.join(__dirname, '../', empresa.logo);
 
         if (fs.existsSync(logoPath)) {

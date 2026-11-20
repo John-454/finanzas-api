@@ -1,57 +1,20 @@
 const Empresa = require('../models/Empresa');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+const { subirLogo } = require('../middlewares/logoUpload');
+const logoService = require('../services/logoService');
 
-// Configuración de multer para subir archivos
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadPath = 'uploads/logos';
-    // Crear directorio si no existe
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-    }
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    // Generar nombre único: userId_timestamp.ext
-    const ext = path.extname(file.originalname);
-    const filename = `${req.usuario.id}_${Date.now()}${ext}`;
-    cb(null, filename);
-  }
-});
-
-// Filtro para validar tipos de archivo
-const fileFilter = (req, file, cb) => {
-  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-  if (allowedTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error('Tipo de archivo no permitido. Solo se permiten imágenes (JPEG, PNG, GIF)'), false);
-  }
-};
-
-// Middleware de multer
-const upload = multer({ 
-  storage: storage,
-  fileFilter: fileFilter,
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB límite
-  }
-});
+const RUTA_LOGO = '/api/empresa/logo';
 
 // Obtener empresa del usuario autenticado
 exports.obtenerEmpresa = async (req, res, next) => {
   try {
     const empresa = await Empresa.findOne({ usuarioId: req.usuario.id });
-    
+
     if (!empresa) {
       return res.status(404).json({ error: 'No se encontró empresa para este usuario' });
     }
 
     res.json(empresa);
   } catch (err) {
-    console.error('Error al obtener empresa:', err);
     return next(err);
   }
 };
@@ -59,7 +22,6 @@ exports.obtenerEmpresa = async (req, res, next) => {
 // Crear empresa (solo una por usuario)
 exports.crearEmpresa = async (req, res, next) => {
   try {
-    // Verificar si el usuario ya tiene una empresa
     const empresaExistente = await Empresa.findOne({ usuarioId: req.usuario.id });
     if (empresaExistente) {
       return res.status(400).json({ error: 'El usuario ya tiene una empresa registrada' });
@@ -67,11 +29,17 @@ exports.crearEmpresa = async (req, res, next) => {
 
     const { nombre, direccion, ciudad, contacto } = req.body;
 
-    // Validar campos requeridos
     if (!nombre || !direccion || !ciudad || !contacto) {
-      return res.status(400).json({ 
-        error: 'Todos los campos son requeridos: nombre, direccion, ciudad, contacto' 
+      return res.status(400).json({
+        error: 'Todos los campos son requeridos: nombre, direccion, ciudad, contacto',
       });
+    }
+
+    let logoId = null;
+    if (req.file) {
+      const guardado = await logoService.guardarLogo(req.usuario.id, req.file.buffer);
+      logoId = guardado.id;
+      req.logoId = logoId; // para limpiar si falla el guardado de la empresa
     }
 
     const nuevaEmpresa = new Empresa({
@@ -79,23 +47,19 @@ exports.crearEmpresa = async (req, res, next) => {
       direccion,
       ciudad,
       contacto,
-      logo: req.file ? `/uploads/logos/${req.file.filename}` : null,
-      usuarioId: req.usuario.id
+      logo: logoId ? RUTA_LOGO : null,
+      logoId,
+      usuarioId: req.usuario.id,
     });
 
     await nuevaEmpresa.save();
 
     res.status(201).json(nuevaEmpresa);
   } catch (err) {
-    console.error('Error al crear empresa:', err);
-    
-    // Eliminar archivo si se subió pero falló la creación
-    if (req.file) {
-      fs.unlink(req.file.path, (unlinkErr) => {
-        if (unlinkErr) console.error('Error al eliminar archivo:', unlinkErr);
-      });
+    // Si se guardó el logo pero falló la creación, limpiar el archivo
+    if (req.file && req.logoId) {
+      await logoService.eliminarLogo(req.usuario.id, req.logoId).catch(() => {});
     }
-    
     return next(err);
   }
 };
@@ -111,38 +75,32 @@ exports.actualizarEmpresa = async (req, res, next) => {
 
     const { nombre, direccion, ciudad, contacto } = req.body;
 
-    // Actualizar campos
     if (nombre) empresa.nombre = nombre;
     if (direccion) empresa.direccion = direccion;
     if (ciudad) empresa.ciudad = ciudad;
     if (contacto) empresa.contacto = contacto;
 
-    // Manejar actualización de logo
     if (req.file) {
-      // Eliminar logo anterior si existe
-      if (empresa.logo) {
-        const logoAnterior = path.join(__dirname, '../', empresa.logo);
-        fs.unlink(logoAnterior, (err) => {
-          if (err) console.error('Error al eliminar logo anterior:', err);
-        });
+      const guardado = await logoService.guardarLogo(req.usuario.id, req.file.buffer);
+      const logoAnterior = empresa.logoId;
+
+      empresa.logoId = guardado.id;
+      empresa.logo = RUTA_LOGO;
+      req.logoId = guardado.id;
+
+      // Eliminar el logo anterior solo después de guardar el nuevo
+      if (logoAnterior) {
+        await logoService.eliminarLogo(req.usuario.id, logoAnterior).catch(() => {});
       }
-      
-      empresa.logo = `/uploads/logos/${req.file.filename}`;
     }
 
     await empresa.save();
 
     res.json(empresa);
   } catch (err) {
-    console.error('Error al actualizar empresa:', err);
-    
-    // Eliminar archivo si se subió pero falló la actualización
-    if (req.file) {
-      fs.unlink(req.file.path, (unlinkErr) => {
-        if (unlinkErr) console.error('Error al eliminar archivo:', unlinkErr);
-      });
+    if (req.file && req.logoId) {
+      await logoService.eliminarLogo(req.usuario.id, req.logoId).catch(() => {});
     }
-    
     return next(err);
   }
 };
@@ -156,19 +114,14 @@ exports.eliminarEmpresa = async (req, res, next) => {
       return res.status(404).json({ error: 'No se encontró empresa para este usuario' });
     }
 
-    // Eliminar logo si existe
-    if (empresa.logo) {
-      const logoPath = path.join(__dirname, '../', empresa.logo);
-      fs.unlink(logoPath, (err) => {
-        if (err) console.error('Error al eliminar logo:', err);
-      });
+    if (empresa.logoId) {
+      await logoService.eliminarLogo(req.usuario.id, empresa.logoId).catch(() => {});
     }
 
     await empresa.deleteOne();
 
     res.json({ mensaje: 'Empresa eliminada correctamente' });
   } catch (err) {
-    console.error('Error al eliminar empresa:', err);
     return next(err);
   }
 };
@@ -182,26 +135,52 @@ exports.eliminarLogo = async (req, res, next) => {
       return res.status(404).json({ error: 'No se encontró empresa para este usuario' });
     }
 
-    if (!empresa.logo) {
+    if (!empresa.logoId && !empresa.logo) {
       return res.status(400).json({ error: 'La empresa no tiene logo para eliminar' });
     }
 
-    // Eliminar archivo del sistema
-    const logoPath = path.join(__dirname, '../', empresa.logo);
-    fs.unlink(logoPath, (err) => {
-      if (err) console.error('Error al eliminar archivo de logo:', err);
-    });
+    if (empresa.logoId) {
+      await logoService.eliminarLogo(req.usuario.id, empresa.logoId).catch(() => {});
+    }
 
-    // Actualizar base de datos
     empresa.logo = null;
+    empresa.logoId = null;
     await empresa.save();
 
     res.json({ mensaje: 'Logo eliminado correctamente', empresa });
   } catch (err) {
-    console.error('Error al eliminar logo:', err);
     return next(err);
   }
 };
 
-// Exportar middleware de multer para uso en las rutas
-exports.uploadLogo = upload.single('logo');
+// Servir el logo del usuario autenticado (nunca público)
+exports.obtenerLogo = async (req, res, next) => {
+  try {
+    const empresa = await Empresa.findOne({ usuarioId: req.usuario.id }).select('logoId');
+
+    if (!empresa?.logoId) {
+      return res.status(404).json({ error: 'La empresa no tiene logo' });
+    }
+
+    const logo = await logoService.abrirLogo(req.usuario.id, empresa.logoId);
+
+    if (!logo) {
+      return res.status(404).json({ error: 'Logo no encontrado' });
+    }
+
+    res.setHeader('Content-Type', logo.contentType);
+    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'private, max-age=300');
+
+    logo.stream.on('error', () => {
+      if (!res.headersSent) res.status(500).end();
+    });
+    logo.stream.pipe(res);
+  } catch (err) {
+    return next(err);
+  }
+};
+
+// Middleware de Multer registrado en las rutas
+exports.uploadLogo = subirLogo;
