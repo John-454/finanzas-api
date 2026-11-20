@@ -42,7 +42,7 @@ test('la clave de login maneja peticiones sin body', () => {
   assert.equal(claveLogin({ ip: '1.2.3.4' }), '1.2.3.4|');
 });
 
-test('IPv6: direcciones del mismo /64 comparten límite (no se puede eludir)', () => {
+test('IPv6: direcciones del mismo bloque comparten límite (no se puede eludir)', () => {
   const a = claveLogin({
     ip: '2001:db8:abcd:1234:aaaa:bbbb:cccc:0001',
     body: { email: 'x@y.com' },
